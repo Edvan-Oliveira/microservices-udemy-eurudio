@@ -33,9 +33,9 @@ Centraliza as requisições e faz o roteamento para os serviços.
 
 Junto com o Micrometer, identificam e mapeiam as requisições entre os serviços, facilitando a identificação de falhas.
 
-| URL do Swagger                        | 
-|---------------------------------------|
-| http://localhost:8765/swagger-ui.html |
+| URL do Zipkin           | 
+|-------------------------|
+| http://localhost:9411/  |
 
 <img src="https://github.com/Edvan-Oliveira/imagens/blob/main/microservices-udemy-eurudio/zipkin.png?raw=true" alt="Zipkin">
 
