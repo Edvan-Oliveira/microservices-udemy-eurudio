@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: greeting-service
+
+# allowing information: http://localhost:8080/actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - "*"
+
+# custom properties
+greeting-service:
+  greeting: "Hello"
+  default-value: "World (dev)"

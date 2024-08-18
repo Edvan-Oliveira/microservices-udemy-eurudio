@@ -1,0 +1,154 @@
+version: '3.4'
+services:
+  zipkin-server:
+    image: openzipkin/zipkin:2.23.2
+    restart: always
+    ports:
+      - "9411:9411"
+    depends_on:
+      - rabbit-mq
+    environment:
+      RABBIT_URI: amqp://guest:guest@rabbit-mq:5672
+    networks:
+      - ms-network
+
+  rabbit-mq:
+    image: rabbitmq:3.8.14-management
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - ms-network
+
+  naming-service:
+    image: edvan10/naming-server:0.0.1-SNAPSHOT
+    restart: always
+    ports:
+      - "8761:8761"
+    depends_on:
+      - zipkin-server
+      - rabbit-mq
+    environment:
+      MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin-server:9411/api/v2/spans
+      RABBIT_URI: amqp://guest:guest@rabbit-mq:5672
+      SPRING_RABBITMQ_HOST: rabbit-mq
+      SPRING_ZIPKIN_SENDER_TYPE: rabbit
+    networks:
+      - ms-network
+
+  api-gateway:
+    image: edvan10/api-gateway:0.0.1-SNAPSHOT
+    restart: always
+    ports:
+      - "8765:8765"
+    depends_on:
+      - naming-service
+      - zipkin-server
+      - rabbit-mq
+    environment:
+      EUREKA.CLIENT.SERVICEURL.DEFAULTZONE: http://naming-service:8761/eureka
+      MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin-server:9411/api/v2/spans
+      RABBIT_URI: amqp://guest:guest@rabbit-mq:5672
+      SPRING_RABBITMQ_HOST: rabbit-mq
+      SPRING_ZIPKIN_SENDER_TYPE: rabbit
+    networks:
+      - ms-network
+
+  cambio-service:
+    image: edvan10/cambio-service
+    restart: always
+    build: ./cambio-service
+    environment:
+      TZ: America/Sao_Paulo
+      EUREKA.CLIENT.SERVICEURL.DEFAULTZONE: http://naming-service:8761/eureka
+      MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin-server:9411/api/v2/spans
+      SPRING.DATASOURCE.URL: jdbc:mysql://cambio-db:3308/cambio_service?useSSL=false&useTimezone=true&serverTimezone=UTC&enabledTLSProtocols=TLSv1.2
+      SPRING.DATASOURCE.USERNAME: ms_user
+      SPRING.DATASOURCE.PASSWORD: ms_pass
+      SPRING.FLYWAY.URL: jdbc:mysql://cambio-db:3308/cambio_service?useSSL=false&useTimezone=true&serverTimezone=UTC&enabledTLSProtocols=TLSv1.2
+      SPRING.FLYWAY.SCHEMAS: cambio_service
+      SPRING.FLYWAY.USER: ms_user
+      SPRING.FLYWAY.PASSWORD: ms_pass
+      RABBIT_URI: amqp://guest:guest@rabbit-mq:5672
+      SPRING_RABBITMQ_HOST: rabbit-mq
+      SPRING_ZIPKIN_SENDER_TYPE: rabbit
+    ports:
+      - "8000:8000"
+    depends_on:
+      - naming-service
+      - api-gateway
+      - cambio-db
+      - rabbit-mq
+    networks:
+      - ms-network
+
+  book-service:
+    image: edvan10/book-service
+    restart: always
+    build: ./book-service
+    environment:
+      TZ: America/Sao_Paulo
+      EUREKA.CLIENT.SERVICEURL.DEFAULTZONE: http://naming-service:8761/eureka
+      MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin-server:9411/api/v2/spans
+      SPRING.DATASOURCE.URL: jdbc:mysql://book-db:3310/book_service?useSSL=false&useTimezone=true&serverTimezone=UTC&enabledTLSProtocols=TLSv1.2
+      SPRING.DATASOURCE.USERNAME: ms_user
+      SPRING.DATASOURCE.PASSWORD: ms_pass
+      SPRING.FLYWAY.URL: jdbc:mysql://book-db:3310/book_service?useSSL=false&useTimezone=true&serverTimezone=UTC&enabledTLSProtocols=TLSv1.2
+      SPRING.FLYWAY.SCHEMAS: book_service
+      SPRING.FLYWAY.USER: ms_user
+      SPRING.FLYWAY.PASSWORD: ms_pass
+      RABBIT_URI: amqp://guest:guest@rabbit-mq:5672
+      SPRING_RABBITMQ_HOST: rabbit-mq
+      SPRING_ZIPKIN_SENDER_TYPE: rabbit
+    ports:
+      - "8100:8100"
+    depends_on:
+      - naming-service
+      - api-gateway
+      - book-db
+      - rabbit-mq
+    networks:
+      - ms-network
+
+  cambio-db:
+    image: mysql:8.3.0
+    command: mysqld --default_authentication_plugin=mysql_native_password
+    restart: always
+    environment:
+      TZ: America/Sao_Paulo
+      MYSQL_ROOT_PASSWORD: docker
+      MYSQL_USER: ms_user
+      MYSQL_PASSWORD: ms_pass
+      MYSQL_DATABASE: cambio_service
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_TCP_PORT: 3308
+    ports:
+      - "3308:3308"
+    expose:
+      - 3308
+    networks:
+      - ms-network
+
+  book-db:
+    image: mysql:8.3.0
+    command: mysqld --default_authentication_plugin=mysql_native_password
+    restart: always
+    environment:
+      TZ: America/Sao_Paulo
+      MYSQL_ROOT_PASSWORD: docker
+      MYSQL_USER: ms_user
+      MYSQL_PASSWORD: ms_pass
+      MYSQL_DATABASE: book_service
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_TCP_PORT: 3310
+    ports:
+      - "3310:3310"
+    expose:
+      - 3310
+    networks:
+      - ms-network
+
+networks:
+  ms-network:
+    driver: bridge

@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: greeting-service
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - "*"
+
+# custom properties
+greeting-service:
+  greeting: "[Git] Hello"
+  default-value: "World"
